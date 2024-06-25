@@ -49,7 +49,7 @@ def pretrain_evaluate(model, pretrain_dataloader, epoch, results_file_path, cont
         content_hit[2] = 100 * np.mean(hit_pt[4])
 
 
-def finetuning_evaluate(model, test_dataloader, epoch, results_file_path, initial_hit, best_hit, eval_metric,
+def finetuning_evaluate(args, model, test_dataloader, epoch, results_file_path, initial_hit, best_hit, eval_metric,
                         torch_save_path):
     model.eval()
 
@@ -58,7 +58,15 @@ def finetuning_evaluate(model, test_dataloader, epoch, results_file_path, initia
     # Fine-tuning Test
     for batch in test_dataloader.get_rec_data(shuffle=False):
         context_entities, context_tokens, _, _, _, target_items = batch
-        scores = model.forward(context_entities, context_tokens)
+        # scores = model.forward(context_entities, context_tokens)
+        
+        if args.model == 'LATTE':
+            scores = model.forward(context_entities, context_tokens)
+        elif args.model == 'BERT4REC':
+            scores = model.forward_BERT4REC(context_entities, context_tokens)
+        elif args.model == 'KBRD':
+            scores = model.forward_KBRD(context_entities, context_tokens)
+
         scores = scores[:, torch.LongTensor(model.movie2ids)]
 
         target_items = target_items.cpu().numpy()
@@ -110,8 +118,8 @@ def train_recommender(args, model, train_dataloader, test_dataloader, path, resu
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_dc_step, gamma=args.lr_dc)
 
     for epoch in range(args.epoch_ft):
-        pretrain_evaluate(model, pretrain_dataloader, epoch, results_file_path, content_hit)
-        finetuning_evaluate(model, test_dataloader, epoch, results_file_path, initial_hit, best_hit, eval_metric, path)
+        # pretrain_evaluate(model, pretrain_dataloader, epoch, results_file_path, content_hit)
+        finetuning_evaluate(args, model, test_dataloader, epoch, results_file_path, initial_hit, best_hit, eval_metric, path)
 
         # TRAIN
         model.train()
@@ -122,11 +130,20 @@ def train_recommender(args, model, train_dataloader, test_dataloader, path, resu
 
         for batch in train_dataloader.get_rec_data(args.batch_size):
             context_entities, context_tokens, review_meta, review, review_mask, target_items = batch
-            scores_ft = model.forward(context_entities, context_tokens)
-            loss_ft = model.criterion(scores_ft, target_items.to(args.device_id))
+            if args.model == 'LATTE':
+                scores_ft = model.forward(context_entities, context_tokens)
+            elif args.model == 'BERT4REC':
+                scores_ft = model.forward_BERT4REC(context_entities, context_tokens)
+            elif args.model == 'KBRD':
+                scores_ft = model.forward_KBRD(context_entities, context_tokens)
 
-            loss_pt = model.pre_forward(review_meta, review, review_mask, target_items)
-            loss = loss_ft + ((loss_pt) * args.loss_lambda)
+            scores_ft = scores_ft[:, torch.LongTensor(model.movie2ids)]
+            target_items = torch.LongTensor([model.movie2ids.index(i) for i in target_items])
+
+            loss = model.criterion(scores_ft, target_items.to(args.device_id))
+
+            # loss_pt = model.pre_forward(review_meta, review, review_mask, target_items)
+            # loss = loss_ft + ((loss_pt) * args.loss_lambda)
 
             total_loss += loss.data.float()
             optimizer.zero_grad()
@@ -137,8 +154,8 @@ def train_recommender(args, model, train_dataloader, test_dataloader, path, resu
         print('Loss:\t%.4f\t%f' % (total_loss, scheduler.get_last_lr()[0]))
     # torch.save(model.state_dict(), path)  # TIME_MODELNAME 형식
 
-    pretrain_evaluate(model, pretrain_dataloader, epoch, results_file_path, content_hit)
-    finetuning_evaluate(model, test_dataloader, 10, results_file_path, initial_hit, best_hit, eval_metric, path)
+    # pretrain_evaluate(model, pretrain_dataloader, epoch, results_file_path, content_hit)
+    finetuning_evaluate(args, model, test_dataloader, epoch, results_file_path, initial_hit, best_hit, eval_metric, path)
 
     best_result = [100 * best_hit[0], 100 * best_hit[2], 100 * best_hit[4]]
 

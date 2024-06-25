@@ -12,7 +12,7 @@ import numpy as np
 
 class CRSDataLoader:
     def __init__(self, dataset, n_sample, batch_size, entity_truncate=None, word_truncate=None, padding_idx=0,
-                 mode='Test', cls_token=101, type='bert', task='rec'):
+                 mode='Test', cls_token=101, type='bert', task='rec', debug=False):
         self.cls_token = cls_token
         self.entity_truncate = entity_truncate
         self.word_truncate = word_truncate
@@ -20,6 +20,7 @@ class CRSDataLoader:
         self.n_sample = n_sample
         self.batch_size = batch_size
         self.type = type
+        self.debug = debug
         if task == 'rec':
             self.dataset = self.rec_process_fn(dataset, mode)
         elif task == 'conv':
@@ -84,9 +85,11 @@ class CRSDataLoader:
         return self.get_data(self.rec_batchify, shuffle)
 
     def rec_process_fn(self, dataset, mode):
+        if self.debug:
+            dataset = dataset[:100]
         augment_dataset = []
         for conv_dict in tqdm(dataset, bar_format=' {percentage:3.0f} % | {bar:23} {r_bar}'):
-            if conv_dict['role'] == 'Recommender':
+            if conv_dict['role'] == 'Recommender' and conv_dict['goal'] in ['Movie recommendation', 'POI recommendation', 'Music recommendation', 'Q&A', 'Food recommendation'] and conv_dict['know'] != []:
                 for idx, movie in enumerate(conv_dict['items']):
                     augment_conv_dict = deepcopy(conv_dict)
                     augment_conv_dict['item'] = movie

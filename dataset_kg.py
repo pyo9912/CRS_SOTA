@@ -46,7 +46,7 @@ class KGInformation:
         for h, t, r in edge_list:
             relation_cnt[r] += 1
         for h, t, r in edge_list:
-            if relation_cnt[r] > 1000:
+            if relation_cnt[r] > 0: # ReDial, Inspired 0
                 if r not in relation2id:
                     relation2id[r] = len(relation2id)
                 edges.add((h, t, relation2id[r]))

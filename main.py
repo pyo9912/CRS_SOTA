@@ -40,7 +40,7 @@ from utils import get_time_kst
 def createResultFile(args):
     mdhm = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d%H%M%S'))
     rawSubfolder_name = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d') + '_raw')
-    rawFolder_path = os.path.join('./results', rawSubfolder_name)
+    rawFolder_path = os.path.join(args.home,'results', rawSubfolder_name)
     if not os.path.exists(rawFolder_path): os.mkdir(rawFolder_path)
 
     if 'rec' in args.task:
@@ -104,17 +104,23 @@ def randomize_model(model):
 
 def main(args):
     if 'redial' in args.dataset_path:
-        pretrained_path = f'./saved_model/{args.task}/redial/pretrained_model_{args.name}.pt'
-        trained_path = f'./saved_model/{args.task}/redial/trained_model_{args.name}.pt'
-        best_rec_path = f'./saved_model/rec/redial/trained_model_best.pt'
-        best_rec_pretrained_path = f'./saved_model/rec/redial/pretrained_model_best.pt'
-        best_conv_pretrained_path = f'./saved_model/conv/redial/pretrained_model_best.pt'
+        pretrained_path = f'{args.home}/saved_model/{args.task}/redial/pretrained_model_{args.name}.pt'
+        trained_path = f'{args.home}/saved_model/{args.task}/redial/trained_model_{args.name}.pt'
+        best_rec_path = f'{args.home}/saved_model/rec/redial/trained_model_best.pt'
+        best_rec_pretrained_path = f'{args.home}/saved_model/rec/redial/pretrained_model_best.pt'
+        best_conv_pretrained_path = f'{args.home}/saved_model/conv/redial/pretrained_model_best.pt'
     elif 'inspired' in args.dataset_path:
-        pretrained_path = f'./saved_model/{args.task}/inspired/pretrained_model_{args.name}.pt'
-        trained_path = f'./saved_model/{args.task}/inspired/trained_model_{args.name}.pt'
-        best_rec_path = f'./saved_model/rec/inspired/trained_model_best.pt'
-        best_rec_pretrained_path = f'./saved_model/rec/redial/pretrained_model_best.pt'
-        best_conv_pretrained_path = f'./saved_model/conv/inspired/pretrained_model_best.pt'
+        pretrained_path = f'{args.home}/saved_model/{args.task}/inspired/pretrained_model_{args.name}.pt'
+        trained_path = f'{args.home}/saved_model/{args.task}/inspired/trained_model_{args.name}.pt'
+        best_rec_path = f'{args.home}/saved_model/rec/inspired/trained_model_best.pt'
+        best_rec_pretrained_path = f'{args.home}/saved_model/rec/redial/pretrained_model_best.pt'
+        best_conv_pretrained_path = f'{args.home}/saved_model/conv/inspired/pretrained_model_best.pt'
+    elif 'DuRecDial' in args.dataset_path:
+        pretrained_path = f'{args.home}/saved_model/{args.task}/DuRecDial/pretrained_model_{args.name}.pt'
+        trained_path = f'{args.home}/saved_model/{args.task}/DuRecDial/trained_model_{args.name}.pt'
+        best_rec_path = f'{args.home}/saved_model/rec/DuRecDial/trained_model_best.pt'
+        best_rec_pretrained_path = f'{args.home}/saved_model/rec/DuRecDial/pretrained_model_best.pt'
+        best_conv_pretrained_path = f'{args.home}/saved_model/conv/DuRecDial/pretrained_model_best.pt'
 
     # Dataset path
     ROOT_PATH = dirname(realpath(__file__))
@@ -137,6 +143,8 @@ def main(args):
     if args.n_layer != -1:
         modules = [bert_model.encoder.layer[:bert_config.num_hidden_layers - args.n_layer],
                    bert_model.embeddings]
+    else:
+        modules = []
     for module in modules:
         for param in module.parameters():
             param.requires_grad = False
@@ -178,11 +186,10 @@ def main(args):
         pretrain_dataloader = DataLoader(content_dataset, batch_size=args.batch_size, shuffle=True)
 
         # For pre-training
-        # model.load_state_dict(torch.load(best_rec_path, map_location='cuda:%d' % args.device_id), strict=False)
-        if not args.pretrained:
-            pretrain(args, model, pretrain_dataloader, pretrained_path)
-        else:
-            model.load_state_dict(torch.load(best_rec_pretrained_path))  # state_dict를 불러 온 후, 모델에 저장`
+        # if not args.pretrained:
+        #     pretrain(args, model, pretrain_dataloader, pretrained_path)
+        # else:
+        #     model.load_state_dict(torch.load(best_rec_pretrained_path))  # state_dict를 불러 온 후, 모델에 저장`
 
         type = 'bert'
         if args.dataset_path == 'data/inspired':
@@ -191,13 +198,13 @@ def main(args):
 
         train_rec_dataloader = CRSDataLoader(train_data, args.n_sample, args.batch_size,
                                              word_truncate=args.max_dialog_len, cls_token=tokenizer.cls_token_id,
-                                             task='rec', type=type)
+                                             task='rec', type=type, debug=args.debug)
         valid_rec_dataloader = CRSDataLoader(valid_data, args.n_sample, args.batch_size,
                                              word_truncate=args.max_dialog_len,
-                                             cls_token=tokenizer.cls_token_id, task='rec', type=type)
+                                             cls_token=tokenizer.cls_token_id, task='rec', type=type, debug=args.debug)
         test_rec_dataloader = CRSDataLoader(test_data, args.n_sample, args.batch_size,
                                             word_truncate=args.max_dialog_len,
-                                            cls_token=tokenizer.cls_token_id, task='rec', type=type)
+                                            cls_token=tokenizer.cls_token_id, task='rec', type=type, debug=args.debug)
 
         if args.mode == 'test':
             content_hit, initial_hit, best_result = train_recommender(args, model, train_rec_dataloader,

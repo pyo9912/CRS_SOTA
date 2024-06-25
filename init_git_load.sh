@@ -1,5 +1,5 @@
 #!/bin/bash
-cd data/redial
+cd data2/redial
 #wget -O foo.html google.com
 echo "CRS 공용 OneDrive 를 통해 필요 데이터를 다운로드합니다"
 wget --no-check-certificate "https://hyu-my.sharepoint.com/:u:/g/personal/hirooms2_hanyang_ac_kr/ETObngmhWGVGjzGdfScOSO8BqTt61E0kP_G-XD7mBpdBTg?e=MAvXT4&download=1" -O content_data.json

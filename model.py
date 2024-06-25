@@ -56,17 +56,23 @@ class MovieExpertCRS(nn.Module):
         # Gating
         self.gating = nn.Linear(2 * self.kg_emb_dim, self.kg_emb_dim)
 
+        # predict
+        self.output = nn.Linear(self.kg_emb_dim, n_entity)
+        # self.output = nn.Sequential(nn.Linear(self.token_emb_dim, self.token_emb_dim//2), nn.ReLU(), nn.Linear(self.token_emb_dim//2, n_entity))# nn.Linear(self.hidden_size, args.topic_num)
+
         # Loss
         self.criterion = nn.CrossEntropyLoss()
 
         # initialize all parameter (except for pretrained BERT)
-        self.initialize()
+        # self.initialize()
 
     # todo: initialize 해줘야 할 parameter check
     def initialize(self):
         nn.init.xavier_uniform_(self.linear_transformation.weight)
         nn.init.xavier_uniform_(self.gating.weight)
         nn.init.xavier_uniform_(self.entity_proj.weight)
+        # nn.init.xavier_uniform_(self.topic_proj.weight)
+        nn.init.xavier_uniform_(self.output.weight)
 
         self.entity_attention.initialize()
         self.token_attention.initialize()
@@ -163,7 +169,30 @@ class MovieExpertCRS(nn.Module):
         entity_attn_rep = self.dropout_ft(entity_attn_rep)
 
         gate = torch.sigmoid(self.gating(torch.cat([token_attn_rep, entity_attn_rep], dim=1)))
-        user_embedding = gate * token_attn_rep + (1 - gate) * entity_attn_rep
+        
+        user_embedding = gate * token_attn_rep + (1 - gate) * entity_attn_rep # LATTE (or KGSF)
+        
+        scores = F.linear(user_embedding, kg_embedding)
+        return scores
+    
+    def forward_BERT4REC(self, context_entities, context_tokens):
+        entity_representations, entity_padding_mask, kg_embedding, token_embedding, token_padding_mask = self.get_representations(
+            context_entities,
+            context_tokens)
 
+        token_attn_rep = token_embedding[:, 0, :]
+        user_embedding = self.linear_transformation(token_attn_rep)
+                
+        scores = self.output(user_embedding)
+        return scores
+
+    def forward_KBRD(self, context_entities, context_tokens):
+        entity_representations, entity_padding_mask, kg_embedding, token_embedding, token_padding_mask = self.get_representations(
+            context_entities,
+            context_tokens)
+
+        user_embedding = self.entity_attention(entity_representations, entity_padding_mask,
+                                                position=self.args.position)  # (bs, entity_dim)
+        
         scores = F.linear(user_embedding, kg_embedding)
         return scores

@@ -1,6 +1,6 @@
 import argparse
 import logging
-
+import os
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument('--num_trial', type=int, default=3)
     parser.add_argument('--device_id', type=int, default=0)
     parser.add_argument('--mode', type=str, default='test', choices=['valid','test'])
-    parser.add_argument('--dataset_path', type=str, default='data/redial', choices=['data/redial', 'data/inspired'])
+    parser.add_argument('--dataset_path', type=str, default='data/redial', choices=['data/redial', 'data/inspired', 'data/DuRecDial'])
 
     # rec
     parser.add_argument('--n_review', type=int, default=9)
@@ -36,6 +36,8 @@ def parse_args():
     parser.add_argument('--lr_dc_step', type=int, default=5, help='warmup_step')
     parser.add_argument('--lr_dc', type=float, default=0.1, help='warmup_gamma')
     parser.add_argument('--pretrained', action='store_true')
+    parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--model', type=str, default='LATTE')
 
     # conv
     parser.add_argument('--n_template_sample', type=int, default=2, help='sampling')
@@ -87,7 +89,8 @@ def parse_args():
     parser.add_argument('--vocab_size', type=int, default=30522, help='vocab_size')
 
     args = parser.parse_args()
-
+    args.home = os.path.dirname(__file__)
+    print(args.home)
     logging.info(args)
     return args
 

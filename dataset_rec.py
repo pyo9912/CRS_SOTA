@@ -30,7 +30,7 @@ class ContentInformation(Dataset):
         self.key_list = list(self.data_samples.keys()) # movie id list
 
     def read_data(self, max_review_len):
-        f = open(os.path.join(self.data_path, 'content_data_new.json'), encoding='utf-8')
+        f = open(os.path.join(self.args.home, self.data_path, 'content_data_new.json'), encoding='utf-8')
         data = json.load(f)
 
         for sample in tqdm(data, bar_format=' {percentage:3.0f} % | {bar:23} {r_bar}'):
@@ -179,6 +179,9 @@ class CRSDatasetRec:
                     "text": f'{role_name}: {text}',  # role + text
                     "entity": entity_ids,
                     "movie": movie_ids,
+                    "goal": utt['goal'] if 'goal' in utt else 'Movie recommendation',
+                    "know": utt['know'] if 'know' in utt else ['know']
+
                 })
             last_role = utt["role"]
 
@@ -201,6 +204,8 @@ class CRSDatasetRec:
 
                 conv_dict = {
                     "role": conv['role'],
+                    "goal": conv['goal'],
+                    "know": conv['know'],
                     "context_tokens": copy(context_tokens),
                     "response": text_token_ids,  # text_tokens,
                     "context_entities": copy(context_entities),
