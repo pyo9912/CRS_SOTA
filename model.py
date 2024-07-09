@@ -123,6 +123,13 @@ class MovieExpertCRS(nn.Module):
             return scores, target_item
         return loss
 
+    def get_representations_tokens(self, context_entities, context_tokens):
+        token_padding_mask = ~context_tokens.eq(self.pad_entity_idx).to(self.device_id)  # (bs, token_len)
+        token_embedding = self.word_encoder(input_ids=context_tokens.to(self.device_id),
+                                            attention_mask=token_padding_mask.to(
+                                                self.device_id)).last_hidden_state  # [bs, token_len, word_dim]
+        return token_embedding, token_padding_mask
+        
     def get_representations(self, context_entities, context_tokens):
         kg_embedding = self.kg_encoder(None, self.edge_idx, self.edge_type)  # (n_entity, entity_dim)
         entity_padding_mask = ~context_entities.eq(self.pad_entity_idx).to(self.device_id)  # (bs, entity_len)
@@ -176,12 +183,9 @@ class MovieExpertCRS(nn.Module):
         return scores
     
     def forward_BERT4REC(self, context_entities, context_tokens):
-        entity_representations, entity_padding_mask, kg_embedding, token_embedding, token_padding_mask = self.get_representations(
-            context_entities,
-            context_tokens)
-
+        token_embedding, token_padding_mask = self.get_representations_tokens(context_entities, context_tokens)
         token_attn_rep = token_embedding[:, 0, :]
-        user_embedding = self.linear_transformation(token_attn_rep)
+        user_embedding = nn.ReLU()(self.linear_transformation(token_attn_rep))
                 
         scores = self.output(user_embedding)
         return scores

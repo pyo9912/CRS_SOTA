@@ -13,6 +13,17 @@ import os
 import numpy as np
 
 
+
+def user_profile_setting(ufDic: dict) -> str:
+    uf = ''
+    for k, v in ufDic.items():
+        if isinstance(v, list):
+            uf += f" {k}: {', '.join(v)}|"
+        elif isinstance(v, str):
+            uf += f" {k}: {v.replace(' ', ' ')}|"
+    return uf
+
+
 class ContentInformation(Dataset):
     def __init__(self, args, data_path, tokenizer, device):
         super(Dataset, self).__init__()
@@ -138,11 +149,26 @@ class CRSDatasetRec:
         self.valid_data = self._raw_data_process(valid_data_raw)
         logger.debug("[Finish valid data process]")
 
-    def _raw_data_process(self, raw_data):
+    def _raw_data_process(self, raw_data):            
+        if 'user_profile' in raw_data[0]:
+            for idx1 in range(len(raw_data)):
+                user_profile = raw_data[idx1]['user_profile']
+                user_profile = user_profile_setting(user_profile)
+                filtered_user_profile = []
+
+                for profile in user_profile.split('|'):
+                    if 'accepted' in profile.lower() or 'rejected' in profile.lower():
+                        filtered_user_profile.append(profile.strip())
+                user_profile = " | ".join(filtered_user_profile).strip()
+                # user_profile = self.tokenizer.decode(self.tokenizer(user_profile).input_ids[1:][:200])
+                for idx2 in range(len(raw_data[idx1]['dialog'])):
+                    raw_data[idx1]['dialog'][idx2]['user_profile'] = user_profile
+
         augmented_convs = [self._merge_conv_data(conversation["dialog"]) for
                            conversation in tqdm(raw_data,
                                                 bar_format=' {percentage:3.0f} % | {bar:23} {r_bar}')]  # 연속해서 나온 대화들 하나로 합침 (예) S1, S2, R1 --> S1 + S2, R1
         augmented_conv_dicts = []
+        
         for conv in tqdm(augmented_convs):
             augmented_conv_dicts.extend(self._augment_and_add(conv))  # conversation length 만큼 training sample 생성
         return augmented_conv_dicts
@@ -157,7 +183,7 @@ class CRSDatasetRec:
                 if word[0] == '@' and word[1:].isnumeric():
                     utt['text'][idx] = '%s' % (self.movie2name[word[1:]][1])
 
-            text = ' '.join(utt['text'])
+            text = ' '.join([i for i in utt['text'] if i[0]!='[' or i[-1] !=']'])
             movie_ids = [self.entity2id[movie] for movie in utt['movies'] if
                          movie in self.entity2id]  # utterance movie(entity2id) 마다 entity2id 저장
             entity_ids = [self.entity2id[entity] for entity in utt['entity'] if
@@ -180,7 +206,8 @@ class CRSDatasetRec:
                     "entity": entity_ids,
                     "movie": movie_ids,
                     "goal": utt['goal'] if 'goal' in utt else 'Movie recommendation',
-                    "know": utt['know'] if 'know' in utt else ['know']
+                    "know": utt['know'] if 'know' in utt else ['know'],
+                    "user_profile": utt['user_profile'] if "user_profile" in utt else ""
 
                 })
             last_role = utt["role"]
@@ -193,8 +220,13 @@ class CRSDatasetRec:
         entity_set, word_set = set(), set()
         for i, conv in enumerate(raw_conv_dict):
             text_tokens, entities, movies = conv["text"], conv["entity"], conv["movie"]
+            
             text_tokens = text_tokens + self.sep_token
+
             text_token_ids = self.tokenizer(text_tokens, add_special_tokens=False).input_ids
+            user_profile = self.tokenizer(conv['user_profile'] + self.sep_token, add_special_tokens=False).input_ids
+            goal_tokens = self.tokenizer(conv['goal'], add_special_tokens=False).input_ids
+            
             plot_meta, plot, plot_mask, review_meta, review, review_mask = [], [], [], [], [], []
             if len(context_tokens) > 0:
                 for movie in movies:
@@ -205,7 +237,9 @@ class CRSDatasetRec:
                 conv_dict = {
                     "role": conv['role'],
                     "goal": conv['goal'],
+                    "goal_tokens": goal_tokens,
                     "know": conv['know'],
+                    "user_profile": user_profile,
                     "context_tokens": copy(context_tokens),
                     "response": text_token_ids,  # text_tokens,
                     "context_entities": copy(context_entities),

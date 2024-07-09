@@ -12,8 +12,8 @@ import numpy as np
 
 class CRSDataLoader:
     def __init__(self, dataset, n_sample, batch_size, entity_truncate=None, word_truncate=None, padding_idx=0,
-                 mode='Test', cls_token=101, type='bert', task='rec', debug=False):
-        self.cls_token = cls_token
+                 mode='train', special_tokens_dict={}, type='bert', task='rec', debug=False):
+        self.special_tokens_dict = special_tokens_dict
         self.entity_truncate = entity_truncate
         self.word_truncate = word_truncate
         self.padding_idx = padding_idx
@@ -89,14 +89,15 @@ class CRSDataLoader:
             dataset = dataset[:100]
         augment_dataset = []
         for conv_dict in tqdm(dataset, bar_format=' {percentage:3.0f} % | {bar:23} {r_bar}'):
-            if conv_dict['role'] == 'Recommender' and conv_dict['goal'] in ['Movie recommendation', 'POI recommendation', 'Music recommendation', 'Q&A', 'Food recommendation'] and conv_dict['know'] != []:
-                for idx, movie in enumerate(conv_dict['items']):
-                    augment_conv_dict = deepcopy(conv_dict)
-                    augment_conv_dict['item'] = movie
-                    augment_conv_dict['review_meta'] = conv_dict['review_meta'][idx]
-                    augment_conv_dict['review'] = conv_dict['review'][idx]
-                    augment_conv_dict['review_mask'] = conv_dict['review_mask'][idx]
-                    augment_dataset.append(augment_conv_dict)
+            if conv_dict['role'] == 'Recommender':
+                if mode == 'train' or (conv_dict['goal'] in ['Movie recommendation', 'POI recommendation', 'Music recommendation', 'Q&A', 'Food recommendation'] and conv_dict['know'] != []):
+                    for idx, movie in enumerate(conv_dict['items']):
+                        augment_conv_dict = deepcopy(conv_dict)
+                        augment_conv_dict['item'] = movie
+                        augment_conv_dict['review_meta'] = conv_dict['review_meta'][idx]
+                        augment_conv_dict['review'] = conv_dict['review'][idx]
+                        augment_conv_dict['review_mask'] = conv_dict['review_mask'][idx]
+                        augment_dataset.append(augment_conv_dict)
 
         logger.info('[Finish dataset process before rec batchify]')
         logger.info(f'[Rec Dataset size: {len(augment_dataset)}]')
@@ -113,12 +114,13 @@ class CRSDataLoader:
             batch_context_entities.append(
                 truncate(conv_dict['context_entities'], self.entity_truncate, truncate_tail=False))
             dialog_history_flatten = sum(conv_dict['context_tokens'], [])
+
             context_tokens = truncate(dialog_history_flatten, self.word_truncate, truncate_tail=False)
-            if self.cls_token is not None:
-                if self.type == 'bert':
-                    context_tokens = [self.cls_token] + context_tokens
-                elif self.type == 'gpt':
-                    context_tokens = context_tokens + [self.cls_token]
+            user_profile = truncate(conv_dict['user_profile'], 200, truncate_tail=True)
+            goal = conv_dict['goal_tokens']
+
+            context_tokens = [self.special_tokens_dict['<goal>']] + goal + [self.special_tokens_dict['<profile>']] + user_profile + [self.special_tokens_dict['<dialog>']] + context_tokens
+            context_tokens = [self.special_tokens_dict['[CLS]']] + context_tokens
 
             batch_context_tokens.append(context_tokens)
             batch_item.append(conv_dict['item'])

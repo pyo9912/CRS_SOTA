@@ -157,7 +157,7 @@ def main(args):
     gpt_model = GPT2LMHeadModel.from_pretrained(args.gpt_name, config=gpt_config)
     gpt_model.resize_token_embeddings(len(tokenizer_gpt))
     gpt_model.config.pad_token_id = tokenizer_gpt.pad_token_id
-    gpt_model = gpt_model.to(args.device_id)
+    # gpt_model = gpt_model.to(args.device_id)
 
     # GPT model freeze layers
     if args.gpt_n_layer != -1:
@@ -196,15 +196,16 @@ def main(args):
             for param in model.word_encoder.parameters():
                 param.requires_grad = False
 
+        special_tokens_dict = {k:v for k, v in zip(tokenizer.all_special_tokens, tokenizer.all_special_ids)}
         train_rec_dataloader = CRSDataLoader(train_data, args.n_sample, args.batch_size,
-                                             word_truncate=args.max_dialog_len, cls_token=tokenizer.cls_token_id,
+                                             word_truncate=args.max_dialog_len, mode='train', special_tokens_dict=special_tokens_dict,
                                              task='rec', type=type, debug=args.debug)
         valid_rec_dataloader = CRSDataLoader(valid_data, args.n_sample, args.batch_size,
-                                             word_truncate=args.max_dialog_len,
-                                             cls_token=tokenizer.cls_token_id, task='rec', type=type, debug=args.debug)
+                                             word_truncate=args.max_dialog_len, mode='test',
+                                             special_tokens_dict=special_tokens_dict, task='rec', type=type, debug=args.debug)
         test_rec_dataloader = CRSDataLoader(test_data, args.n_sample, args.batch_size,
-                                            word_truncate=args.max_dialog_len,
-                                            cls_token=tokenizer.cls_token_id, task='rec', type=type, debug=args.debug)
+                                            word_truncate=args.max_dialog_len, mode='test',
+                                            special_tokens_dict=special_tokens_dict, task='rec', type=type, debug=args.debug)
 
         if args.mode == 'test':
             content_hit, initial_hit, best_result = train_recommender(args, model, train_rec_dataloader,
