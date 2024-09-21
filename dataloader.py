@@ -12,7 +12,7 @@ import numpy as np
 
 class CRSDataLoader:
     def __init__(self, dataset, n_sample, batch_size, entity_truncate=None, word_truncate=None, padding_idx=0,
-                 mode='train', special_tokens_dict={}, type='bert', task='rec', debug=False):
+                 mode='train', cls_token=101, special_tokens_dict={}, type='bert', task='rec', debug=False):
         self.special_tokens_dict = special_tokens_dict
         self.entity_truncate = entity_truncate
         self.word_truncate = word_truncate

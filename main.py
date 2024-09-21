@@ -109,12 +109,18 @@ def main(args):
         best_rec_path = f'{args.home}/saved_model/rec/redial/trained_model_best.pt'
         best_rec_pretrained_path = f'{args.home}/saved_model/rec/redial/pretrained_model_best.pt'
         best_conv_pretrained_path = f'{args.home}/saved_model/conv/redial/pretrained_model_best.pt'
-    elif 'inspired' in args.dataset_path:
-        pretrained_path = f'{args.home}/saved_model/{args.task}/inspired/pretrained_model_{args.name}.pt'
-        trained_path = f'{args.home}/saved_model/{args.task}/inspired/trained_model_{args.name}.pt'
-        best_rec_path = f'{args.home}/saved_model/rec/inspired/trained_model_best.pt'
-        best_rec_pretrained_path = f'{args.home}/saved_model/rec/redial/pretrained_model_best.pt'
-        best_conv_pretrained_path = f'{args.home}/saved_model/conv/inspired/pretrained_model_best.pt'
+    # elif 'inspired' == args.dataset_path:
+    #     pretrained_path = f'{args.home}/saved_model/{args.task}/inspired/pretrained_model_{args.name}.pt'
+    #     trained_path = f'{args.home}/saved_model/{args.task}/inspired/trained_model_{args.name}.pt'
+    #     best_rec_path = f'{args.home}/saved_model/rec/inspired/trained_model_best.pt'
+    #     best_rec_pretrained_path = f'{args.home}/saved_model/rec/inspired/pretrained_model_best.pt'
+    #     best_conv_pretrained_path = f'{args.home}/saved_model/conv/inspired/pretrained_model_best.pt'
+    elif 'inspired2' in args.dataset_path:
+        pretrained_path = f'{args.home}/saved_model/{args.task}/inspired2/pretrained_model_{args.name}.pt'
+        trained_path = f'{args.home}/saved_model/{args.task}/inspired2/trained_model_{args.name}.pt'
+        best_rec_path = f'{args.home}/saved_model/rec/inspired2/trained_model_best.pt'
+        best_rec_pretrained_path = f'{args.home}/saved_model/rec/inspired2/pretrained_model_best.pt'
+        best_conv_pretrained_path = f'{args.home}/saved_model/conv/inspired2/pretrained_model_best.pt'
     elif 'DuRecDial' in args.dataset_path:
         pretrained_path = f'{args.home}/saved_model/{args.task}/DuRecDial/pretrained_model_{args.name}.pt'
         trained_path = f'{args.home}/saved_model/{args.task}/DuRecDial/trained_model_{args.name}.pt'
@@ -186,26 +192,37 @@ def main(args):
         pretrain_dataloader = DataLoader(content_dataset, batch_size=args.batch_size, shuffle=True)
 
         # For pre-training
-        # if not args.pretrained:
-        #     pretrain(args, model, pretrain_dataloader, pretrained_path)
-        # else:
-        #     model.load_state_dict(torch.load(best_rec_pretrained_path))  # state_dict를 불러 온 후, 모델에 저장`
+        if not args.pretrained:
+            pretrain(args, model, pretrain_dataloader, pretrained_path)
+        else:
+            model.load_state_dict(torch.load(best_rec_pretrained_path))  # state_dict를 불러 온 후, 모델에 저장`
 
         type = 'bert'
-        if args.dataset_path == 'data/inspired':
-            for param in model.word_encoder.parameters():
-                param.requires_grad = False
+        # if args.dataset_path == 'data/inspired2':
+        #     print('all freeze?')
+        #     for param in model.word_encoder.parameters():
+        #         param.requires_grad = False
 
         special_tokens_dict = {k:v for k, v in zip(tokenizer.all_special_tokens, tokenizer.all_special_ids)}
+        # train_rec_dataloader = CRSDataLoader(train_data, args.n_sample, args.batch_size,
+        #                                      word_truncate=args.max_dialog_len, mode='train', special_tokens_dict=special_tokens_dict,
+        #                                      task='rec', type=type, debug=args.debug)
+        # valid_rec_dataloader = CRSDataLoader(valid_data, args.n_sample, args.batch_size,
+        #                                      word_truncate=args.max_dialog_len, mode='test',
+        #                                      special_tokens_dict=special_tokens_dict, task='rec', type=type, debug=args.debug)
+        # test_rec_dataloader = CRSDataLoader(test_data, args.n_sample, args.batch_size,
+        #                                     word_truncate=args.max_dialog_len, mode='test',
+        #                                     special_tokens_dict=special_tokens_dict, task='rec', type=type, debug=args.debug)
+
         train_rec_dataloader = CRSDataLoader(train_data, args.n_sample, args.batch_size,
-                                             word_truncate=args.max_dialog_len, mode='train', special_tokens_dict=special_tokens_dict,
+                                             word_truncate=args.max_dialog_len, cls_token=tokenizer.cls_token_id, special_tokens_dict=special_tokens_dict,
                                              task='rec', type=type, debug=args.debug)
         valid_rec_dataloader = CRSDataLoader(valid_data, args.n_sample, args.batch_size,
-                                             word_truncate=args.max_dialog_len, mode='test',
-                                             special_tokens_dict=special_tokens_dict, task='rec', type=type, debug=args.debug)
+                                             word_truncate=args.max_dialog_len, special_tokens_dict=special_tokens_dict,
+                                             cls_token=tokenizer.cls_token_id, task='rec', type=type, debug=args.debug)
         test_rec_dataloader = CRSDataLoader(test_data, args.n_sample, args.batch_size,
-                                            word_truncate=args.max_dialog_len, mode='test',
-                                            special_tokens_dict=special_tokens_dict, task='rec', type=type, debug=args.debug)
+                                            word_truncate=args.max_dialog_len, special_tokens_dict=special_tokens_dict,
+                                            cls_token=tokenizer.cls_token_id, task='rec', type=type, debug=args.debug)
 
         if args.mode == 'test':
             content_hit, initial_hit, best_result = train_recommender(args, model, train_rec_dataloader,

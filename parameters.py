@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument('--num_trial', type=int, default=3)
     parser.add_argument('--device_id', type=int, default=0)
     parser.add_argument('--mode', type=str, default='test', choices=['valid','test'])
-    parser.add_argument('--dataset_path', type=str, default='data/redial', choices=['data/redial', 'data/inspired', 'data/DuRecDial'])
+    parser.add_argument('--dataset_path', type=str, default='data/redial', choices=['data/redial', 'data/inspired', 'data/inspired2','data/DuRecDial','data/DuRecDial_Latte'])
 
     # rec
     parser.add_argument('--n_review', type=int, default=9)

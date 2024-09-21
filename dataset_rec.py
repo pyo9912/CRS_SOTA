@@ -180,6 +180,8 @@ class CRSDatasetRec:
         for utt in dialog:
             # BERT_tokenzier 에 입력하기 위해 @IDX 를 해당 movie의 name으로 replace
             for idx, word in enumerate(utt['text']):
+                # if len(word) <2:
+                #     print(utt['text'])
                 if word[0] == '@' and word[1:].isnumeric():
                     utt['text'][idx] = '%s' % (self.movie2name[word[1:]][1])
 
@@ -230,6 +232,8 @@ class CRSDatasetRec:
             plot_meta, plot, plot_mask, review_meta, review, review_mask = [], [], [], [], [], []
             if len(context_tokens) > 0:
                 for movie in movies:
+                    if movie not in self.content_dataset.data_samples:
+                        continue
                     review_meta.append(self.content_dataset.data_samples[movie]['review_meta'])
                     review.append(self.content_dataset.data_samples[movie]['review'])
                     review_mask.append(self.content_dataset.data_samples[movie]['review_mask'])

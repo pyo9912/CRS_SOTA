@@ -114,9 +114,13 @@ class MovieExpertCRS(nn.Module):
         content_emb = self.dropout_pt(content_emb)
 
         gate = torch.sigmoid(self.gating(torch.cat([content_emb, entity_attn_rep], dim=1)))  # [B * N, d * 2]
-        user_embedding = gate * content_emb + (1 - gate) * entity_attn_rep  # [B * N, d]
-
-        scores = F.linear(user_embedding, kg_embedding)  # [B * N, all_entity]
+        
+        if self.args.model == 'BERT4REC':
+            user_embedding = nn.ReLU()(content_emb) # gate * content_emb + (1 - gate) * entity_attn_rep  # [B * N, d]
+            scores = self.output(user_embedding)
+        else:
+            user_embedding = gate * content_emb + (1 - gate) * entity_attn_rep  # [B * N, d]
+            scores = F.linear(user_embedding, kg_embedding)  # [B * N, all_entity]
 
         loss = self.criterion(scores, target_item)
         if compute_score:
@@ -188,6 +192,20 @@ class MovieExpertCRS(nn.Module):
         user_embedding = nn.ReLU()(self.linear_transformation(token_attn_rep))
                 
         scores = self.output(user_embedding)
+        return scores
+    
+    def forward_BERT4REC_KG(self, context_entities, context_tokens):
+
+        entity_representations, entity_padding_mask, kg_embedding, token_embedding, token_padding_mask = self.get_representations(
+            context_entities,
+            context_tokens)
+
+        # token_embedding, token_padding_mask = self.get_representations_tokens(context_entities, context_tokens)
+        token_attn_rep = token_embedding[:, 0, :]
+        user_embedding = self.linear_transformation(token_attn_rep)
+                
+        scores = F.linear(user_embedding, kg_embedding)
+
         return scores
 
     def forward_KBRD(self, context_entities, context_tokens):

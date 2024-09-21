@@ -8,7 +8,8 @@ from torch import nn, optim
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
 
-topk = [1, 5, 10, 20, 50]
+# topk = [1, 5, 10, 20, 50]
+topk = [1, 2, 3, 4, 5]
 
 
 def pretrain_evaluate(model, pretrain_dataloader, epoch, results_file_path, content_hit):
@@ -64,6 +65,8 @@ def finetuning_evaluate(args, model, test_dataloader, epoch, results_file_path, 
             scores = model.forward(context_entities, context_tokens)
         elif args.model == 'BERT4REC':
             scores = model.forward_BERT4REC(context_entities, context_tokens)
+        elif args.model == 'BERT4REC_KG':
+            scores = model.forward_BERT4REC_KG(context_entities, context_tokens)
         elif args.model == 'KBRD':
             scores = model.forward_KBRD(context_entities, context_tokens)
 
@@ -134,16 +137,18 @@ def train_recommender(args, model, train_dataloader, test_dataloader, path, resu
                 scores_ft = model.forward(context_entities, context_tokens)
             elif args.model == 'BERT4REC':
                 scores_ft = model.forward_BERT4REC(context_entities, context_tokens)
+            elif args.model == 'BERT4REC_KG':
+                scores_ft = model.forward_BERT4REC_KG(context_entities, context_tokens)
             elif args.model == 'KBRD':
                 scores_ft = model.forward_KBRD(context_entities, context_tokens)
 
             scores_ft = scores_ft[:, torch.LongTensor(model.movie2ids)]
             target_items = torch.LongTensor([model.movie2ids.index(i) for i in target_items])
 
-            loss = model.criterion(scores_ft, target_items.to(args.device_id))
+            loss_ft = model.criterion(scores_ft, target_items.to(args.device_id))
 
-            # loss_pt = model.pre_forward(review_meta, review, review_mask, target_items)
-            # loss = loss_ft + ((loss_pt) * args.loss_lambda)
+            loss_pt = model.pre_forward(review_meta, review, review_mask, target_items)
+            loss = loss_ft + ((loss_pt) * args.loss_lambda)
 
             total_loss += loss.data.float()
             optimizer.zero_grad()
